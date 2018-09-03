@@ -1,0 +1,6 @@
+https://github.com/Kolyaj/yandex-disk
+https://github.com/Microsoft/vsts-task-lib/blob/master/node/README.md
+https://docs.microsoft.com/ru-ru/vsts/extend/develop/add-build-task?view=vsts
+
+
+https://github.com/Microsoft/vsts-task-lib/blob/master/node/docs/stepbystep.md
