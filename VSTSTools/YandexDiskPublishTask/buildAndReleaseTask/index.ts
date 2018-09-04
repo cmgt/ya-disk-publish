@@ -21,7 +21,7 @@ async function run() {
 		let matchedPaths: string[] = tl.match(allPaths, contents, sourceFolder); // default match options
 		let matchedFiles: string[] = matchedPaths.filter((itemPath: string) => !tl.stats(itemPath).isDirectory()); // filter-out directories
 		
-		// publich the files to the target folder		
+		// publish the files to the target folder		
 		console.log(tl.loc('FoundNFiles', matchedFiles.length));		
 		               
         let yd = new yandexDisk.YandexDisk(oauthToken);
@@ -29,7 +29,7 @@ async function run() {
 		
 		let createdFolders: { [folder: string]: boolean } = {};
 		
-		matchedFiles.forEach(async (file: string) => {            		
+		matchedFiles.forEach((file: string) => {            		
             let relativePath = file.substring(sourceFolder.length);
 			// trim leading path separator
 			// note, assumes normalized above
@@ -40,45 +40,51 @@ async function run() {
             let targetPath = path.join(targetFolder, relativePath);
             let targetDir = path.dirname(targetPath);
 
-		    if (!createdFolders[targetDir]) {
-		        var created = await ydCreateDir(yd, targetDir)
-                    .fail((err) => {
-		                console.log(err);
-		            });
+		    let promises: Q.Promise<any>[] = [];
 
-		        if (created) {
-		            console.log('Success create folder ' + targetDir);
-		        } else {
-		            console.log('Folder ' + targetDir + ' already exist');
-		        }
+		    if (!createdFolders[targetDir]) {
+		        console.log('Recursive create folders ' + targetDir);		                
+		        targetDir.split(path.sep).reduce((parentDir, childDir) => {
+		            const curDir = path.resolve(parentDir, childDir);		            
+                    tl.debug('create subdir ' + curDir);
+		            promises.push(ydCreateDir(yd, curDir));
+		            return curDir;
+		        });		        		        
 
 		        createdFolders[targetDir] = true;
 		    }
 
-		    console.log(file + ' -> ' + targetPath);
-		    await ydUploadFile(yd, file, targetPath)
+		    promises.push(ydUploadFile(yd, file, targetPath));
+
+		    promises.reduce(Q.when, Q())
 		        .fail((err) => {
-		            console.log(err);
-		        });;
-		    console.log('Success upload file ' + file);
+		            console.error(err);
+		            throw err;
+		        });
 		});        
     }
-    catch (err) {
-        tl.setResult(tl.TaskResult.Failed, err.message);
+    catch (e) {
+        tl.setResult(tl.TaskResult.Failed, e.message);
     }
 }
 
-function ydCreateDir(yd: yandexDisk.YandexDisk, path: string): Q.Promise<boolean> {
+function ydCreateDir(yd: yandexDisk.YandexDisk, dirPath: string): Q.Promise<boolean> {
     const deferred = Q.defer<boolean>();
 
-    tl.debug('call yd.mkdir');
-
-    yd.mkdir(path,
+    tl.debug('call yd.mkdir ' + dirPath);    
+    
+    yd.mkdir(dirPath,
         (err, created) => {
             if (err) {
-                console.log('Fail create folder ' + path);
+                console.error('Fail create folder ' + dirPath + '. ' + err);
                 deferred.reject(err);
             } else {
+                if (created) {
+                    console.log('Success create folder ' + dirPath);
+                } else {
+                    console.warn('Folder ' + dirPath + ' already exist');
+                }
+
                 deferred.resolve(created);
             }
         });       
@@ -89,14 +95,15 @@ function ydCreateDir(yd: yandexDisk.YandexDisk, path: string): Q.Promise<boolean
 function ydUploadFile(yd: yandexDisk.YandexDisk, file: string, targetPath: string): Q.Promise<void> {
     const deferred = Q.defer<void>();
 
-    tl.debug('call yd.uploadFile');
+    tl.debug('call yd.uploadFile ' + file + ' to ' + targetPath);
 
     yd.uploadFile(file, targetPath, 
         (err) => {
             if (err) {
-                console.log('Fail upload file ' + file + ' to target path ' + targetPath);
+                console.error('Fail upload file ' + file + ' to path ' + targetPath);
                 deferred.reject(err);
             } else {
+                console.log('Success upload file ' + file + ' to path ' + targetPath);
                 deferred.resolve();
             }
         });       
