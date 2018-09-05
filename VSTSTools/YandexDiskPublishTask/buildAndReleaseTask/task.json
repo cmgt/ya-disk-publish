@@ -15,8 +15,8 @@
     "author": "Denis Porotikov",
     "version": {
         "Major": 0,
-        "Minor": 4,
-        "Patch": 16
+        "Minor": 5,
+        "Patch": 6
     },
     "instanceNameFormat": "Yandex.Disk Publish",
     "inputs": [

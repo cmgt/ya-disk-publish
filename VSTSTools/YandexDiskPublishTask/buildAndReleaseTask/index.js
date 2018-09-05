@@ -28,41 +28,55 @@ function run() {
             let matchedFiles = matchedPaths.filter((itemPath) => !tl.stats(itemPath).isDirectory()); // filter-out directories
             // publish the files to the target folder		
             console.log(tl.loc('FoundNFiles', matchedFiles.length));
-            let yd = new yandexDisk.YandexDisk(oauthToken);
-            console.log('Create Yandex.Disk web client');
-            let createdFolders = {};
-            matchedFiles.forEach((file) => {
-                let relativePath = file.substring(sourceFolder.length);
-                // trim leading path separator
-                // note, assumes normalized above
-                if (relativePath.startsWith(path.sep)) {
-                    relativePath = relativePath.substr(1);
-                }
-                let targetPath = path.join(targetFolder, relativePath);
-                let targetDir = path.dirname(targetPath);
-                let promises = [];
-                if (!createdFolders[targetDir]) {
-                    console.log('Recursive create folders ' + targetDir);
-                    targetDir.split(path.sep).reduce((parentDir, childDir) => {
-                        const curDir = path.resolve(parentDir, childDir);
-                        tl.debug('create subdir ' + curDir);
-                        promises.push(ydCreateDir(yd, curDir));
-                        return curDir;
-                    });
-                    createdFolders[targetDir] = true;
-                }
-                promises.push(ydUploadFile(yd, file, targetPath));
-                promises.reduce(Q.when, Q())
-                    .fail((err) => {
-                    console.error(err);
-                    throw err;
-                });
-            });
+            UploadFiles(matchedFiles, sourceFolder, targetFolder, oauthToken)
+                .then(() => console.log('Task done'))
+                .fail((err) => tl.setResult(tl.TaskResult.Failed, err));
         }
         catch (e) {
             tl.setResult(tl.TaskResult.Failed, e.message);
         }
     });
+}
+function UploadFiles(files, sourceFolder, targetFolder, oauthToken) {
+    const deferred = Q.defer();
+    let yd = new yandexDisk.YandexDisk(oauthToken);
+    console.log('Create Yandex.Disk web client');
+    let createdFolders = {};
+    let createFolderPromise = Q(true);
+    let fileUploadPromises = [];
+    for (let file of files) {
+        let relativePath = file.substring(sourceFolder.length);
+        // trim leading path separator
+        // note, assumes normalized above
+        if (relativePath.startsWith(path.sep)) {
+            relativePath = relativePath.substr(1);
+        }
+        let targetPath = path.join(targetFolder, relativePath);
+        let targetDir = path.dirname(targetPath);
+        if (!createdFolders[targetDir]) {
+            console.log('Recursive create folders ' + targetDir);
+            var pathParts = targetDir.split(path.sep);
+            let parentDir = "";
+            for (let childDir of pathParts) {
+                parentDir = path.join(parentDir, childDir);
+                if (!createdFolders[parentDir]) {
+                    tl.debug('create subdir ' + parentDir);
+                    createFolderPromise = createFolderPromise.then(() => ydCreateDir(yd, parentDir));
+                    createdFolders[parentDir] = true;
+                }
+            }
+            createdFolders[targetDir] = true;
+        }
+        createFolderPromise = createFolderPromise.then(() => {
+            fileUploadPromises.push(ydUploadFile(yd, file, targetPath));
+            return true;
+        });
+    }
+    createFolderPromise
+        .then(() => Q.all(fileUploadPromises)
+        .then(() => deferred.resolve()))
+        .fail((err) => deferred.reject(err));
+    return deferred.promise;
 }
 function ydCreateDir(yd, dirPath) {
     const deferred = Q.defer();
@@ -89,7 +103,7 @@ function ydUploadFile(yd, file, targetPath) {
     tl.debug('call yd.uploadFile ' + file + ' to ' + targetPath);
     yd.uploadFile(file, targetPath, (err) => {
         if (err) {
-            console.error('Fail upload file ' + file + ' to path ' + targetPath);
+            console.error('Fail upload file ' + file + ' to path ' + targetPath + '. ' + err);
             deferred.reject(err);
         }
         else {

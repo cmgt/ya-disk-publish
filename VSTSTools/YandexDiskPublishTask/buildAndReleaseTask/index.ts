@@ -22,50 +22,69 @@ async function run() {
 		let matchedFiles: string[] = matchedPaths.filter((itemPath: string) => !tl.stats(itemPath).isDirectory()); // filter-out directories
 		
 		// publish the files to the target folder		
-		console.log(tl.loc('FoundNFiles', matchedFiles.length));		
-		               
-        let yd = new yandexDisk.YandexDisk(oauthToken);
-		console.log('Create Yandex.Disk web client');
+		console.log(tl.loc('FoundNFiles', matchedFiles.length));				                      
 		
-		let createdFolders: { [folder: string]: boolean } = {};
-		
-		matchedFiles.forEach((file: string) => {            		
-            let relativePath = file.substring(sourceFolder.length);
-			// trim leading path separator
-			// note, assumes normalized above
-			if (relativePath.startsWith(path.sep)) {
-				relativePath = relativePath.substr(1);
-			}		
-
-            let targetPath = path.join(targetFolder, relativePath);
-            let targetDir = path.dirname(targetPath);
-
-		    let promises: Q.Promise<any>[] = [];
-
-		    if (!createdFolders[targetDir]) {
-		        console.log('Recursive create folders ' + targetDir);		                
-		        targetDir.split(path.sep).reduce((parentDir, childDir) => {
-		            const curDir = path.resolve(parentDir, childDir);		            
-                    tl.debug('create subdir ' + curDir);
-		            promises.push(ydCreateDir(yd, curDir));
-		            return curDir;
-		        });		        		        
-
-		        createdFolders[targetDir] = true;
-		    }
-
-		    promises.push(ydUploadFile(yd, file, targetPath));
-
-		    promises.reduce(Q.when, Q())
-		        .fail((err) => {
-		            console.error(err);
-		            throw err;
-		        });
-		});        
+		UploadFiles(matchedFiles, sourceFolder, targetFolder, oauthToken)
+            .then(() => console.log('Task done'))
+            .fail((err) => tl.setResult(tl.TaskResult.Failed, err));            
     }
     catch (e) {
         tl.setResult(tl.TaskResult.Failed, e.message);
     }
+}
+
+function UploadFiles(files: string[], sourceFolder: string, targetFolder: string, oauthToken: string): Q.Promise<void> {
+    const deferred = Q.defer<void>();
+
+    let yd = new yandexDisk.YandexDisk(oauthToken);
+	console.log('Create Yandex.Disk web client');
+		
+	let createdFolders: { [folder: string]: boolean } = {};
+    let createFolderPromise = Q(true);
+    let fileUploadPromises: Q.Promise<void>[] = [];
+
+    for (let file of files) {    
+        let relativePath = file.substring(sourceFolder.length);
+	    // trim leading path separator
+	    // note, assumes normalized above
+	    if (relativePath.startsWith(path.sep)) {
+		    relativePath = relativePath.substr(1);
+	    }		
+
+        let targetPath = path.join(targetFolder, relativePath);
+        let targetDir = path.dirname(targetPath);	    
+
+        if (!createdFolders[targetDir]) {
+            console.log('Recursive create folders ' + targetDir);            
+
+            var pathParts = targetDir.split(path.sep);
+            let parentDir: string = "";
+
+            for (let childDir of pathParts) {
+                parentDir = path.join(parentDir, childDir);
+
+                if (!createdFolders[parentDir]) {
+                    tl.debug('create subdir ' + parentDir);
+                    createFolderPromise = createFolderPromise.then(() => ydCreateDir(yd, parentDir));
+                    createdFolders[parentDir] = true;
+                 }
+            }
+
+            createdFolders[targetDir] = true;                     
+        } 
+
+        createFolderPromise = createFolderPromise.then(() => {
+            fileUploadPromises.push(ydUploadFile(yd, file, targetPath));
+            return true;
+        });
+    }
+
+    createFolderPromise
+        .then(() => Q.all(fileUploadPromises)
+            .then(() => deferred.resolve()))
+        .fail((err) => deferred.reject(err));   
+    
+    return deferred.promise;
 }
 
 function ydCreateDir(yd: yandexDisk.YandexDisk, dirPath: string): Q.Promise<boolean> {
@@ -100,7 +119,7 @@ function ydUploadFile(yd: yandexDisk.YandexDisk, file: string, targetPath: strin
     yd.uploadFile(file, targetPath, 
         (err) => {
             if (err) {
-                console.error('Fail upload file ' + file + ' to path ' + targetPath);
+                console.error('Fail upload file ' + file + ' to path ' + targetPath + '. ' + err);
                 deferred.reject(err);
             } else {
                 console.log('Success upload file ' + file + ' to path ' + targetPath);
