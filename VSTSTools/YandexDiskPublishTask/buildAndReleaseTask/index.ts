@@ -8,15 +8,10 @@ async function run() {
 
         tl.setResourcePath(path.join(__dirname, 'task.json'));
 		
-		//let contents: string[] = tl.getDelimitedInput('contents', '\n', true);
-		//let sourceFolder: string = tl.getPathInput('sourcepath', true, true);
-		//let targetFolder: string = tl.getPathInput('destpath', true);		
-		//let oauthToken: string = tl.getInput('oauthtoken', true);
-
-        let contents: string[] = ["**"];
-        let sourceFolder: string = "D:\\test";
-        let targetFolder: string = "test";		
-        let oauthToken: string = "AQAAAAACS5E7AAUtDULTdL3sD0VJqHggFzFIyfw";
+		let contents: string[] = tl.getDelimitedInput('contents', '\n', true);
+		let sourceFolder: string = tl.getPathInput('sourcepath', true, true);
+		let targetFolder: string = tl.getPathInput('destpath', true);		
+		let oauthToken: string = tl.getInput('oauthtoken', true);
 		
 		// normalize the source folder path. this is important for later in order to accurately
 		// determine the relative path of each found file (substring using sourceFolder.length).
