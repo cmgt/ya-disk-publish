@@ -8,10 +8,15 @@ async function run() {
 
         tl.setResourcePath(path.join(__dirname, 'task.json'));
 		
-		let contents: string[] = tl.getDelimitedInput('contents', '\n', true);
-		let sourceFolder: string = tl.getPathInput('sourcepath', true, true);
-		let targetFolder: string = tl.getPathInput('destpath', true);		
-		let oauthToken: string = tl.getInput('oauthtoken', true);
+		//let contents: string[] = tl.getDelimitedInput('contents', '\n', true);
+		//let sourceFolder: string = tl.getPathInput('sourcepath', true, true);
+		//let targetFolder: string = tl.getPathInput('destpath', true);		
+		//let oauthToken: string = tl.getInput('oauthtoken', true);
+
+        let contents: string[] = ["**"];
+        let sourceFolder: string = "D:\\test";
+        let targetFolder: string = "test";		
+        let oauthToken: string = "AQAAAAACS5E7AAUtDULTdL3sD0VJqHggFzFIyfw";
 		
 		// normalize the source folder path. this is important for later in order to accurately
 		// determine the relative path of each found file (substring using sourceFolder.length).
@@ -22,11 +27,15 @@ async function run() {
 		let matchedFiles: string[] = matchedPaths.filter((itemPath: string) => !tl.stats(itemPath).isDirectory()); // filter-out directories
 		
 		// publish the files to the target folder		
-		console.log(tl.loc('FoundNFiles', matchedFiles.length));				                      
-		
-		UploadFiles(matchedFiles, sourceFolder, targetFolder, oauthToken)
-            .then(() => console.log('Task done'))
-            .fail((err) => tl.setResult(tl.TaskResult.Failed, err));            
+		console.log(tl.loc('FoundNFiles', matchedFiles.length));	
+        
+        if (matchedFiles.length == 0) {
+            console.log("Not found files to publish");
+        } else {		
+		    UploadFiles(matchedFiles, sourceFolder, targetFolder, oauthToken)
+                .then(() => console.log('Task done'))
+                .catch((err) => tl.setResult(tl.TaskResult.Failed, err));            
+        }
     }
     catch (e) {
         tl.setResult(tl.TaskResult.Failed, e.message);
@@ -40,7 +49,7 @@ function UploadFiles(files: string[], sourceFolder: string, targetFolder: string
 	console.log('Create Yandex.Disk web client');
 		
 	let createdFolders: { [folder: string]: boolean } = {};
-    let createFolderPromise = Q(true);
+    let createFolderPromise: Q.Promise<boolean> = Q(true);
     let fileUploadPromises: Q.Promise<void>[] = [];
 
     for (let file of files) {    
@@ -64,8 +73,9 @@ function UploadFiles(files: string[], sourceFolder: string, targetFolder: string
                 parentDir = path.join(parentDir, childDir);
 
                 if (!createdFolders[parentDir]) {
-                    tl.debug('create subdir ' + parentDir);
-                    createFolderPromise = createFolderPromise.then(() => ydCreateDir(yd, parentDir));
+                    let subdir: string = parentDir;
+                    tl.debug('create subdir ' + subdir);                    
+                    createFolderPromise = createFolderPromise.then(() => ydCreateDir(yd, subdir));
                     createdFolders[parentDir] = true;
                  }
             }
@@ -81,8 +91,8 @@ function UploadFiles(files: string[], sourceFolder: string, targetFolder: string
 
     createFolderPromise
         .then(() => Q.all(fileUploadPromises)
-            .then(() => deferred.resolve()))
-        .fail((err) => deferred.reject(err));   
+            .then(() => deferred.resolve(null)))
+        .catch((err) => deferred.reject(err));   
     
     return deferred.promise;
 }
@@ -123,7 +133,7 @@ function ydUploadFile(yd: yandexDisk.YandexDisk, file: string, targetPath: strin
                 deferred.reject(err);
             } else {
                 console.log('Success upload file ' + file + ' to path ' + targetPath);
-                deferred.resolve();
+                deferred.resolve(null);
             }
         });       
 

@@ -2,7 +2,7 @@
     "manifestVersion": 1,
     "id": "yandex-disk-publish-build-release-task",
     "name": "Yandex.Disk Publish Task",
-    "version": "0.5.7",
+    "version": "0.5.8",
 	"public": true,
     "publisher": "DenisPorotikov",
     "targets": [

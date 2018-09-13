@@ -13,3 +13,7 @@ https://oauth.yandex.ru/authorize?response_type=token&client_id=6a5e12a08a654444
 Авторизоваться в своем аккаунте Yandex.Disk и предоставить приложению указанные права. После этого произойдет переход на страницу токена
 # Страница расширения на marketplace.visualstudio.com
 https://marketplace.visualstudio.com/items?itemName=DenisPorotikov.yandex-disk-publish-build-release-task
+# История версий
+0.5.8 [2019-09-13] Исправлена ошибка создания вложенных каталогов в облаке Яндекс.Диск
+0.5.7 - первая публичная публикация
+0.5.6 - первая приватная публикая для тестов и отладки
