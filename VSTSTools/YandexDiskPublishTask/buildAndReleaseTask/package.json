@@ -23,7 +23,7 @@
   "homepage": "https://github.com/cmgt/ya-disk-publish#readme",
   "dependencies": {
     "@types/es6-promise": "^3.3.0",
-    "vsts-task-lib": "^2.6.0",
+    "azure-pipelines-task-lib": "^2.7.4",
     "yandex-disk": "0.0.8"
   },
   "devDependencies": {

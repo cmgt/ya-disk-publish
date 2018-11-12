@@ -1,7 +1,7 @@
-import tl = require("vsts-task-lib/task");
-import path = require("path");
-import Q = require("q");
-import yandexDisk = require("yandex-disk");
+import tl = require('azure-pipelines-task-lib/task');
+import path = require('path');
+import Q = require('q');
+import yandexDisk = require('yandex-disk');
 
 async function run() {
     try {        
@@ -15,11 +15,20 @@ async function run() {
 		
 		// normalize the source folder path. this is important for later in order to accurately
 		// determine the relative path of each found file (substring using sourceFolder.length).
-		sourceFolder = path.normalize(sourceFolder);
+        sourceFolder = path.normalize(sourceFolder);
+
+        tl.debug('contents: ' + JSON.stringify(contents));
+        tl.debug(`source folder: '${sourceFolder}'`);
+        tl.debug(`target folder: '${targetFolder}'`);
+        tl.debug(`oauth token: '${oauthToken}'`);
 		
 		let allPaths: string[] = tl.find(sourceFolder); // default find options (follow sym links)
 		let matchedPaths: string[] = tl.match(allPaths, contents, sourceFolder); // default match options
-		let matchedFiles: string[] = matchedPaths.filter((itemPath: string) => !tl.stats(itemPath).isDirectory()); // filter-out directories
+        let matchedFiles: string[] = matchedPaths.filter((itemPath: string) => !tl.stats(itemPath).isDirectory()); // filter-out directories
+
+        tl.debug('all find path: ' + JSON.stringify(allPaths));
+        tl.debug('matched paths:' + JSON.stringify(matchedPaths));
+        tl.debug('matched files:' + JSON.stringify(matchedFiles));
 		
 		// publish the files to the target folder		
 		console.log(tl.loc('FoundNFiles', matchedFiles.length));	

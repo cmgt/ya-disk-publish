@@ -8,7 +8,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const tl = require("vsts-task-lib/task");
+const tl = require("azure-pipelines-task-lib/task");
 const path = require("path");
 const Q = require("q");
 const yandexDisk = require("yandex-disk");
@@ -16,20 +16,27 @@ function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             tl.setResourcePath(path.join(__dirname, 'task.json'));
-            //let contents: string[] = tl.getDelimitedInput('contents', '\n', true);
-            //let sourceFolder: string = tl.getPathInput('sourcepath', true, true);
-            //let targetFolder: string = tl.getPathInput('destpath', true);		
-            //let oauthToken: string = tl.getInput('oauthtoken', true);
-            let contents = ["**"];
-            let sourceFolder = "D:\\test";
-            let targetFolder = "test";
-            let oauthToken = "AQAAAAACS5E7AAUtDULTdL3sD0VJqHggFzFIyfw";
+            let contents = tl.getDelimitedInput('contents', '\n', true);
+            let sourceFolder = tl.getPathInput('sourcepath', true, true);
+            let targetFolder = tl.getPathInput('destpath', true);
+            let oauthToken = tl.getInput('oauthtoken', true);
             // normalize the source folder path. this is important for later in order to accurately
             // determine the relative path of each found file (substring using sourceFolder.length).
             sourceFolder = path.normalize(sourceFolder);
+            tl.debug('contents:');
+            contents.forEach((v, i, arr) => tl.debug(v));
+            tl.debug(`source folder: '${sourceFolder}'`);
+            tl.debug(`target folder: '${targetFolder}'`);
+            tl.debug(`oauth token: '${oauthToken}'`);
             let allPaths = tl.find(sourceFolder); // default find options (follow sym links)
             let matchedPaths = tl.match(allPaths, contents, sourceFolder); // default match options
             let matchedFiles = matchedPaths.filter((itemPath) => !tl.stats(itemPath).isDirectory()); // filter-out directories
+            tl.debug('all find path:');
+            allPaths.forEach((v, i, arr) => tl.debug(v));
+            tl.debug('matched paths:');
+            matchedPaths.forEach((v, i, arr) => tl.debug(v));
+            tl.debug('matched files:');
+            matchedFiles.forEach((v, i, arr) => tl.debug(v));
             // publish the files to the target folder		
             console.log(tl.loc('FoundNFiles', matchedFiles.length));
             if (matchedFiles.length == 0) {
